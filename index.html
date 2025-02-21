@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Office Dashboard</title>
+  <link rel="stylesheet" href="./winbox.min.css">
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+<script src="./winbox.bundle.min.js"></script>
+<script>
+  const columns = 40;
+  const rows = 32;
+
+  // Keep references to WinBox instances so we can reposition them later
+  let winMap = {};
+
+  // Holds window states for query params
+  let windowStates = [];
+
+  function updateGrid() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const cellWidth = w / columns;
+    const cellHeight = h / rows;
+
+    document.body.style.backgroundImage = `
+      linear-gradient(to right, rgba(0,0,0,0.15) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,0.15) 1px, transparent 1px)
+    `;
+    document.body.style.backgroundSize = `${cellWidth}px ${cellHeight}px`;
+    document.body.style.backgroundPosition = "0 0";
+    console.log(`Grid updated => cellWidth=${cellWidth.toFixed(2)}, cellHeight=${cellHeight.toFixed(2)}`);
+  }
+
+  function getCellSizes() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    return {
+      cellWidth: w / columns,
+      cellHeight: h / rows
+    };
+  }
+
+  function snapDimension(width, height, cellWidth, cellHeight) {
+    const snappedW = Math.round(width / cellWidth) * cellWidth;
+    const snappedH = Math.round(height / cellHeight) * cellHeight;
+    return { snappedW, snappedH };
+  }
+
+  function snapPosition(left, top, width, height, cellWidth, cellHeight) {
+    const right = left + width;
+    const bottom = top + height;
+
+    // X axis
+    const nearestLeft = Math.round(left / cellWidth) * cellWidth;
+    const nearestRight = Math.round(right / cellWidth) * cellWidth;
+    const distLeft = Math.abs(left - nearestLeft);
+    const distRight = Math.abs(right - nearestRight);
+    const snappedX = distLeft <= distRight ? nearestLeft : nearestRight - width;
+
+    // Y axis
+    const nearestTop = Math.round(top / cellHeight) * cellHeight;
+    const nearestBottom = Math.round(bottom / cellHeight) * cellHeight;
+    const distTop = Math.abs(top - nearestTop);
+    const distBottom = Math.abs(bottom - nearestBottom);
+    const snappedY = distTop <= distBottom ? nearestTop : nearestBottom - height;
+
+    return { snappedX, snappedY };
+  }
+
+  function updateQueryParameters() {
+    const params = new URLSearchParams(window.location.search);
+    params.set("windows", JSON.stringify(windowStates));
+    const newUrl = window.location.pathname + "?" + params.toString();
+    window.history.replaceState(null, "", newUrl);
+  }
+
+  // Whenever we update a window (move/resize), also store its grid-based positions
+  function updateWindowState(win, newProps) {
+    const state = windowStates.find(s => s.id === win._stateId);
+    if (state) {
+      Object.assign(state, newProps);
+      const { x, y, width, height } = state;
+      const { cellWidth, cellHeight } = getCellSizes();
+      state.gridX = x / cellWidth;
+      state.gridY = y / cellHeight;
+      state.gridWidth = width / cellWidth;
+      state.gridHeight = height / cellHeight;
+      updateQueryParameters();
+    }
+  }
+
+  function removeWindowState(id) {
+    windowStates = windowStates.filter(s => s.id !== id);
+    updateQueryParameters();
+  }
+
+  function generateId() {
+    return Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+  }
+
+  function createSnappingWindow(state) {
+    console.log("Creating window => ", state);
+    const beforeCreation = document.querySelectorAll('.winbox').length;
+
+    let positionTimer = null;
+    let resizeTimer = null;
+    let myContainer = null;
+    const DEBOUNCE_MS = 200;
+    let isSnappingPosition = false;
+    let isSnappingDimension = false;
+
+    // If this is the first time we see this state, store original defaults
+    if (typeof state._origWidth === "undefined") {
+      state._origWidth = state.width || 400;
+    }
+    if (typeof state._origHeight === "undefined") {
+      state._origHeight = state.height || 300;
+    }
+
+    const win = new WinBox({
+      title: state.url,
+      url: state.url,
+      x: state.x,
+      y: state.y,
+      width: state.width || 400,
+      height: state.height || 300,
+      background: "#000C66",
+      onmove: (currentX, currentY) => {
+        clearTimeout(positionTimer);
+        positionTimer = setTimeout(() => {
+          if (!myContainer || isSnappingPosition) return;
+          const rect = myContainer.getBoundingClientRect();
+          const { cellWidth, cellHeight } = getCellSizes();
+          const { snappedX, snappedY } = snapPosition(
+            rect.left,
+            rect.top,
+            rect.width,
+            rect.height,
+            cellWidth,
+            cellHeight
+          );
+          // Snap only if difference > 1
+          if (Math.abs(rect.left - snappedX) > 1 || Math.abs(rect.top - snappedY) > 1) {
+            isSnappingPosition = true;
+            console.log(`Snapping position from (${rect.left}, ${rect.top}) to (${snappedX}, ${snappedY})`);
+            win.move(snappedX, snappedY);
+            updateWindowState(win, { x: snappedX, y: snappedY });
+            setTimeout(() => isSnappingPosition = false, DEBOUNCE_MS);
+          } else {
+            updateWindowState(win, { x: rect.left, y: rect.top });
+          }
+        }, DEBOUNCE_MS);
+      },
+      onresize: (width, height) => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (!myContainer || isSnappingDimension) return;
+
+          // If we are basically full screen, skip snapping so the maximize toggle works
+          const nearFullWidth = window.innerWidth - 10;
+          const nearFullHeight = window.innerHeight - 10;
+          if (width >= nearFullWidth && height >= nearFullHeight) {
+            console.log("Window is nearly full screen => skipping snapDimension to allow toggle restore.");
+            updateWindowState(win, { width, height });
+            return;
+          }
+
+          const rect = myContainer.getBoundingClientRect();
+          const { cellWidth, cellHeight } = getCellSizes();
+          const { snappedW, snappedH } = snapDimension(rect.width, rect.height, cellWidth, cellHeight);
+          // Snap only if difference > 1
+          if (Math.abs(rect.width - snappedW) > 1 || Math.abs(rect.height - snappedH) > 1) {
+            isSnappingDimension = true;
+            console.log(`Snapping dimension from (${rect.width}x${rect.height}) to (${snappedW}x${snappedH})`);
+            win.resize(snappedW, snappedH);
+            updateWindowState(win, { width: snappedW, height: snappedH });
+            setTimeout(() => isSnappingDimension = false, DEBOUNCE_MS);
+          } else {
+            updateWindowState(win, { width: rect.width, height: rect.height });
+          }
+        }, DEBOUNCE_MS);
+      },
+      onclose: () => {
+        console.log(`Window closed => ${state.url}`);
+        removeWindowState(win._stateId);
+      }
+    });
+
+    setTimeout(() => {
+      const afterCreation = document.querySelectorAll('.winbox');
+      if (afterCreation.length <= beforeCreation) {
+        console.log(`No new .winbox found for ${state.url}`);
+        return;
+      }
+      for (let i = beforeCreation; i < afterCreation.length; i++) {
+        myContainer = afterCreation[i];
+        break;
+      }
+      if (!myContainer) {
+        myContainer = afterCreation[afterCreation.length - 1];
+      }
+      console.log(`myContainer found =>`, myContainer);
+
+      // Add right-click handler to the maximize button to restore default size
+      const maxButton = myContainer.querySelector(".wb-max");
+      if (maxButton) {
+        maxButton.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          console.log("Right-click on maximize => restore default size");
+          // Restore to original default size
+          win.resize(state._origWidth, state._origHeight);
+          updateWindowState(win, { width: state._origWidth, height: state._origHeight });
+        });
+      }
+    }, 100);
+
+    // Store reference so we can reposition later on browser resize
+    winMap[state.id] = win;
+
+    // Assign a special ID to link WinBox with state
+    win._stateId = state.id;
+
+    // If we don't already have grid coords, store them
+    if (typeof state.gridX === "undefined" || typeof state.gridY === "undefined") {
+      const { cellWidth, cellHeight } = getCellSizes();
+      state.gridX = state.x / cellWidth;
+      state.gridY = state.y / cellHeight;
+      state.gridWidth = state.width / cellWidth;
+      state.gridHeight = state.height / cellHeight;
+    }
+
+    return win;
+  }
+
+  function initializeWindows() {
+    updateGrid();
+    const params = new URLSearchParams(window.location.search);
+    const windowsParam = params.get("windows");
+    if (windowsParam) {
+      try {
+        windowStates = JSON.parse(windowsParam);
+      } catch (e) {
+        console.error("Error parsing 'windows' param:", e);
+        windowStates = [];
+      }
+    }
+    windowStates.forEach(s => createSnappingWindow(s));
+  }
+
+  // Recompute positions/sizes on browser resize
+  function repositionWindows() {
+    const { cellWidth, cellHeight } = getCellSizes();
+    windowStates.forEach(state => {
+      const win = winMap[state.id];
+      if (!win) return;
+
+      const newX = state.gridX * cellWidth;
+      const newY = state.gridY * cellHeight;
+      const newW = state.gridWidth * cellWidth;
+      const newH = state.gridHeight * cellHeight;
+
+      win.move(newX, newY);
+      win.resize(newW, newH);
+
+      // Update the pixel-based props
+      state.x = newX;
+      state.y = newY;
+      state.width = newW;
+      state.height = newH;
+    });
+    updateQueryParameters();
+  }
+
+  document.addEventListener("contextmenu", e => {
+    // Right-click on body or html to add new window
+    if (e.target === document.body || e.target === document.documentElement) {
+      e.preventDefault();
+      let url = prompt("Enter URL:");
+      if (url) {
+        url = url.trim();
+        // If no protocol, prepend http://
+        if (!/^https?:\/\//i.test(url)) {
+          url = "http://" + url;
+        }
+        const newX = 10 + (windowStates.length * 20);
+        const newY = 10 + (windowStates.length * 20);
+        const state = {
+          id: generateId(),
+          url,
+          x: newX,
+          y: newY,
+          width: 400,
+          height: 300
+        };
+        windowStates.push(state);
+        updateQueryParameters();
+        createSnappingWindow(state);
+      }
+    }
+  });
+
+  window.addEventListener("load", initializeWindows);
+
+  // On browser resize, update grid + reposition windows
+  window.addEventListener("resize", () => {
+    updateGrid();
+    repositionWindows();
+  });
+</script>
+</body>
+</html>
