@@ -41,6 +41,12 @@ This single-page dashboard lets you open resizable, draggable windows via [WinBo
 
 - The window title bar is a darker blue (`#000C66`) to stand out.
 - All functionality is done in vanilla JavaScript, CSS, and HTML. No frameworks or build tools required.
-- Code is now split into multiple files under the `js` folder for better maintainability and separation of concerns.
+- Code is split into multiple files under the `js` folder for better maintainability and separation of concerns.
 
-Have fun experimenting with the layout, and feel free to customize the default grid size, window dimensions, or any other behavior in `js/` files.
+## License
+
+This project is licensed under the [MIT License](https://opensource.org/licenses/MIT).
+
+## Created with Assistance
+
+This project was created with the assistance of ChatGPT. Feel free to customize any parts of the code as needed.
