@@ -1,1 +1,0 @@
-- Disable iframes when minimized
