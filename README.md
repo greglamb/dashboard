@@ -1,27 +1,46 @@
 # Office Dashboard
 
-A single-page dashboard that uses [WinBox.js](https://nextapps-de.github.io/winbox/) to open resizable, draggable windows. You can right-click anywhere on the page to create a new window, and each window snaps to a predefined grid when moved or resized. It also saves window positions and sizes in the URL as query parameters.
+This single-page dashboard lets you open resizable, draggable windows via [WinBox.js](https://nextapps-de.github.io/winbox/). Once you open or move any window, the layout snaps to a dynamic grid and automatically saves all window positions and sizes in the page URL. That way, you can refresh or bookmark the page to preserve your exact layout. There’s also a minimize feature that turns the window black and replaces the iframe’s URL with `about:blank`, which helps reduce resource usage until you restore the window.
 
 ## Setup
 
-1. Make sure you have [WinBox.js](https://github.com/nextapps-de/winbox) dependencies in the same folder. In this repository, `winbox.bundle.min.js` and `winbox.min.css` are included for you.
-2. Open `index.html` in your favorite browser.
-3. For development, you can run a lightweight local server (such as `npx http-server` or `python -m http.server`) in the project directory so you can see changes in real time.
+1. Clone this repository, then make sure `winbox.bundle.min.js` and `winbox.min.css` are in the same folder as `index.html`. These are included in the repo by default.
+2. Open `index.html` in your favorite browser. You can also run a lightweight server (e.g., `npx http-server` or `python -m http.server`) in the project folder if you prefer.
+3. Right-click anywhere on the background to create a new window. If you don’t include `http://` or `https://` in the prompt, the script will prepend `http://`.
 
-## Usage and Features
+## Project Structure
 
-- **Create a Window:** Right-click on the background. When prompted for a URL, type in a valid URL. If you don’t enter a protocol (http or https), it will prepend `http://`.
-- **Grid Snapping:** Windows will snap to a dynamic grid, which adjusts automatically when you resize your browser.
-- **Saving Window States:** All open window states (position, size, and URL) are stored in your browser’s URL. You can bookmark or refresh the page to restore your layout.
-- **Maximize / Restore:**
-  - Clicking the maximize button toggles full screen for that window.
-  - Right-clicking the maximize button restores the window to its default size.
-- **Closing Windows:** Just click the close button in the title bar. The layout will update accordingly.
+- **index.html:** Basic HTML shell loading WinBox and our JavaScript files.
+- **/js/pageState.js:** Manages the global `pageState` and updates query parameters.
+- **/js/grid.js:** Handles the background grid, calculates cell sizes, and snapping logic.
+- **/js/snappingWindow.js:** Creates new WinBox windows with snap and minimize/maximize handling.
+- **/js/main.js:** Pulls it all together, initializes the page from the URL, and listens for user actions.
 
-## Notes
+## Grid Snapping
 
-- **Custom Title Bar Color:** The window bar is set to a darker blue (`#000C66`).
-- **URL Updates:** Each time you create, move, or resize a window, the URL automatically updates. You can share or bookmark this URL to preserve your layout.
-- **Dependencies:** The project is built on vanilla JavaScript, CSS, and HTML. No build tools needed.
+- After you move or resize a window, the app automatically snaps it to a grid. The grid adjusts if you change your browser size, so windows stay organized on any screen resolution.
+- The grid lines are visible in the background for clarity, but you can customize it in the CSS.
 
-Feel free to play around and modify the grid size, default widths, or other behaviors in `index.html`.
+## Saving and Restoring Layout
+
+- All open windows have their positions, sizes, and URLs stored in the browser’s query parameters.
+- When you reload or bookmark the page, those windows reappear just as you left them.
+
+## Minimize, Maximize, and Restore
+
+- **Minimize:** Click the minimize button in the window’s top bar. It will save the original URL, change the iframe to `about:blank`, and turn the background black.
+- **Maximize:** Click the maximize button to make the window go full screen. It restores the iframe to the saved URL if it was previously minimized.
+- **Right-Click on Maximize:** Quickly restores the window to its default width and height.
+- **Restore from Minimize:** Restores the original size, position, and iframe URL.
+
+## Closing Windows
+
+- Just click the close button. The remaining layout automatically updates in the query parameters.
+
+## Additional Notes
+
+- The window title bar is a darker blue (`#000C66`) to stand out.
+- All functionality is done in vanilla JavaScript, CSS, and HTML. No frameworks or build tools required.
+- Code is now split into multiple files under the `js` folder for better maintainability and separation of concerns.
+
+Have fun experimenting with the layout, and feel free to customize the default grid size, window dimensions, or any other behavior in `js/` files.

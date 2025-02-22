@@ -1,0 +1,11 @@
+{
+  "name": "office-dashboard",
+  "version": "1.0.0",
+  "description": "Office Dashboard with http-server start script",
+  "scripts": {
+    "start": "npx http-server public"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
