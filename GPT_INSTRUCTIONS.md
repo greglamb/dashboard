@@ -4,9 +4,9 @@ Any AI making changes to this project must follow these instructions
 
 ## Change Tracking
 
-The CHANGELOG.md file must be kept up to date with every change. Log what you were asked to change, and the changes you made to fulfill that request.
+The CHANGELOG.md file must be kept up to date with every change. Use the templates defined within the CHANGELOG.md file. Using the templates, log what you were asked to change, and the changes you made to fulfill that request.
 
-If you are diagnosing an issue, include what issue you are attempt to resolve and the steps you took to resolve it. Use these details in the future to remember what you have tried in the past.
+If you are diagnosing an issue, use the templates to log what issue you are attempt to resolve and the steps you took to resolve it. Use these details in the future to remember what you have tried in the past.
 
 ## Logging
 
